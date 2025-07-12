@@ -10,16 +10,64 @@ pub mod json_parser {
         let space = 32_u8;
         let newline = 10_u8;
         let tab = 9_u8;
-        let carriage_return = 13_u8;  // '\r'
-        
-        while pos < data.len() && (
-            data[pos] == space || 
-            data[pos] == newline || 
-            data[pos] == tab || 
-            data[pos] == carriage_return
-        ) {
+        let carriage_return = 13_u8; // '\r'
+
+        while pos < data.len()
+            && (data[pos] == space
+                || data[pos] == newline
+                || data[pos] == tab
+                || data[pos] == carriage_return) {
             pos += 1;
         }
+    }
+
+    /// Parses the decimal part of a number after the decimal point.
+    /// Returns a tuple of (decimal_places_count, decimal_value, has_decimal_digits).
+    ///
+    /// # Arguments
+    /// * `data` - The byte array containing the JSON data
+    /// * `pos` - Reference to the current position in the byte array (will be advanced)
+    ///
+    /// # Returns
+    /// * `decimal_places` - Number of decimal places found
+    /// * `decimal_part` - The numeric value of the decimal part as u256
+    /// * `has_decimal_digits` - Whether any decimal digits were found
+    fn parse_decimal_part(data: @ByteArray, ref pos: usize) -> (u32, u256, bool) {
+        let mut decimal_places = 0_u32;
+        let mut decimal_part: u256 = 0;
+        let mut has_decimal_digits = false;
+
+        // Parse decimal part
+        while pos < data.len() && (data[pos] >= 48_u8 && data[pos] <= 57_u8) {
+            decimal_part = decimal_part * 10 + (data[pos] - 48_u8).into();
+            decimal_places += 1;
+            pos += 1;
+            has_decimal_digits = true;
+        }
+
+        (decimal_places, decimal_part, has_decimal_digits)
+    }
+
+    /// Calculates the multiplier for converting decimal to fixed-point representation.
+    /// Returns 10^decimal_places as a u256.
+    ///
+    /// # Arguments
+    /// * `decimal_places` - The number of decimal places
+    ///
+    /// # Returns
+    /// * The multiplier value (10^decimal_places)
+    ///
+    /// # Example
+    /// * calculate_multiplier(1) returns 10
+    /// * calculate_multiplier(3) returns 1000
+    fn calculate_multiplier(decimal_places: u32) -> u256 {
+        let mut multiplier: u256 = 1;
+        let mut i = 0_u32;
+        while i < decimal_places {
+            multiplier *= 10;
+            i += 1;
+        }
+        multiplier
     }
 
     pub fn parse_string(data: @ByteArray, ref pos: usize) -> Result<ByteArray, ByteArray> {
@@ -90,10 +138,28 @@ pub mod json_parser {
 
         let mut num: felt252 = 0;
         let mut has_digits = false;
+
+        // Parse integer part
         while pos < data.len() && (data[pos] >= 48_u8 && data[pos] <= 57_u8) { // '0' to '9'
             num = num * 10 + (data[pos] - 48_u8).into();
             pos += 1;
             has_digits = true;
+        }
+
+        // Check for decimal point
+        if pos < data.len() && data[pos] == 46_u8 { // '.'
+            pos += 1; // Skip the decimal point
+            let (decimal_places, decimal_part_u256, has_decimal_digits) = parse_decimal_part(
+                data, ref pos,
+            );
+            if has_decimal_digits {
+                has_digits = true;
+            }
+
+            let multiplier_u256 = calculate_multiplier(decimal_places);
+            let multiplier: felt252 = multiplier_u256.try_into().unwrap();
+            let decimal_part: felt252 = decimal_part_u256.try_into().unwrap();
+            num = num * multiplier + decimal_part;
         }
 
         if is_quoted {
@@ -226,10 +292,28 @@ pub mod json_parser {
 
         let mut num: u128 = 0;
         let mut has_digits = false;
+
+        // Parse integer part
         while pos < data.len() && (data[pos] >= 48_u8 && data[pos] <= 57_u8) {
             num = num * 10 + (data[pos] - 48_u8).into();
             pos += 1;
             has_digits = true;
+        }
+
+        // Check for decimal point
+        if pos < data.len() && data[pos] == 46_u8 { // '.'
+            pos += 1; // Skip the decimal point
+            let (decimal_places, decimal_part_u256, has_decimal_digits) = parse_decimal_part(
+                data, ref pos,
+            );
+            if has_decimal_digits {
+                has_digits = true;
+            }
+
+            let multiplier_u256 = calculate_multiplier(decimal_places);
+            let multiplier: u128 = multiplier_u256.try_into().unwrap();
+            let decimal_part: u128 = decimal_part_u256.try_into().unwrap();
+            num = num * multiplier + decimal_part;
         }
 
         if is_quoted {
@@ -258,10 +342,28 @@ pub mod json_parser {
 
         let mut num: u64 = 0;
         let mut has_digits = false;
+
+        // Parse integer part
         while pos < data.len() && (data[pos] >= 48_u8 && data[pos] <= 57_u8) {
             num = num * 10 + (data[pos] - 48_u8).into();
             pos += 1;
             has_digits = true;
+        }
+
+        // Check for decimal point
+        if pos < data.len() && data[pos] == 46_u8 { // '.'
+            pos += 1; // Skip the decimal point
+            let (decimal_places, decimal_part_u256, has_decimal_digits) = parse_decimal_part(
+                data, ref pos,
+            );
+            if has_decimal_digits {
+                has_digits = true;
+            }
+
+            let multiplier_u256 = calculate_multiplier(decimal_places);
+            let multiplier: u64 = multiplier_u256.try_into().unwrap();
+            let decimal_part: u64 = decimal_part_u256.try_into().unwrap();
+            num = num * multiplier + decimal_part;
         }
 
         if is_quoted {
@@ -290,10 +392,28 @@ pub mod json_parser {
 
         let mut num: u32 = 0;
         let mut has_digits = false;
+
+        // Parse integer part
         while pos < data.len() && (data[pos] >= 48_u8 && data[pos] <= 57_u8) {
             num = num * 10 + (data[pos] - 48_u8).into();
             pos += 1;
             has_digits = true;
+        }
+
+        // Check for decimal point
+        if pos < data.len() && data[pos] == 46_u8 { // '.'
+            pos += 1; // Skip the decimal point
+            let (decimal_places, decimal_part_u256, has_decimal_digits) = parse_decimal_part(
+                data, ref pos,
+            );
+            if has_decimal_digits {
+                has_digits = true;
+            }
+
+            let multiplier_u256 = calculate_multiplier(decimal_places);
+            let multiplier: u32 = multiplier_u256.try_into().unwrap();
+            let decimal_part: u32 = decimal_part_u256.try_into().unwrap();
+            num = num * multiplier + decimal_part;
         }
 
         if is_quoted {
@@ -322,10 +442,28 @@ pub mod json_parser {
 
         let mut num: u256 = 0;
         let mut has_digits = false;
+
+        // Parse integer part
         while pos < data.len() && (data[pos] >= 48_u8 && data[pos] <= 57_u8) {
             num = num * 10 + (data[pos] - 48_u8).into();
             pos += 1;
             has_digits = true;
+        }
+
+        // Check for decimal point
+        if pos < data.len() && data[pos] == 46_u8 { // '.'
+            pos += 1; // Skip the decimal point
+            let (decimal_places, decimal_part, has_decimal_digits) = parse_decimal_part(
+                data, ref pos,
+            );
+            if has_decimal_digits {
+                has_digits = true;
+            }
+
+            // Convert decimal to fixed point by multiplying by 10^decimal_places
+            // For example: 1430.1 becomes 14301 (multiply by 10^1)
+            let multiplier = calculate_multiplier(decimal_places);
+            num = num * multiplier + decimal_part;
         }
 
         if is_quoted {

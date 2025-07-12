@@ -5,6 +5,7 @@ Serde JSON is a library for deserializing JSON data into Cairo structs, designed
 ## Features
 
 - **Deserialization of Basic Types:** Supports `bool`, `u32`, `u64`, `u128`, `u256`, `felt252`, and `ByteArray`.
+- **Decimal Number Parsing:** All numeric types support parsing decimal values (e.g., "1430.1") which are automatically converted to fixed-point representation.
 - **Custom Structs:** Use the `#[derive(SerdeJson)]` attribute to automatically generate deserialization code for your structs.
 - **Arrays:** Deserialize arrays of supported types, including nested arrays.
 - **Whitespace Handling:** Correctly handles whitespace, including multiline JSON with newlines, tabs, and spaces.
