@@ -157,8 +157,14 @@ pub mod json_parser {
             }
 
             let multiplier_u256 = calculate_multiplier(decimal_places);
-            let multiplier: felt252 = multiplier_u256.try_into().unwrap();
-            let decimal_part: felt252 = decimal_part_u256.try_into().unwrap();
+            let multiplier: felt252 = match multiplier_u256.try_into() {
+                Option::Some(val) => val,
+                Option::None => { return Result::Err("Decimal value too large for felt252"); },
+            };
+            let decimal_part: felt252 = match decimal_part_u256.try_into() {
+                Option::Some(val) => val,
+                Option::None => { return Result::Err("Decimal value too large for felt252"); },
+            };
             num = num * multiplier + decimal_part;
         }
 
@@ -311,8 +317,14 @@ pub mod json_parser {
             }
 
             let multiplier_u256 = calculate_multiplier(decimal_places);
-            let multiplier: u128 = multiplier_u256.try_into().unwrap();
-            let decimal_part: u128 = decimal_part_u256.try_into().unwrap();
+            let multiplier: u128 = match multiplier_u256.try_into() {
+                Option::Some(val) => val,
+                Option::None => { return Result::Err("Decimal value too large for u128"); },
+            };
+            let decimal_part: u128 = match decimal_part_u256.try_into() {
+                Option::Some(val) => val,
+                Option::None => { return Result::Err("Decimal value too large for u128"); },
+            };
             num = num * multiplier + decimal_part;
         }
 
@@ -361,8 +373,14 @@ pub mod json_parser {
             }
 
             let multiplier_u256 = calculate_multiplier(decimal_places);
-            let multiplier: u64 = multiplier_u256.try_into().unwrap();
-            let decimal_part: u64 = decimal_part_u256.try_into().unwrap();
+            let multiplier: u64 = match multiplier_u256.try_into() {
+                Option::Some(val) => val,
+                Option::None => { return Result::Err("Decimal value too large for u64"); },
+            };
+            let decimal_part: u64 = match decimal_part_u256.try_into() {
+                Option::Some(val) => val,
+                Option::None => { return Result::Err("Decimal value too large for u64"); },
+            };
             num = num * multiplier + decimal_part;
         }
 
@@ -411,8 +429,14 @@ pub mod json_parser {
             }
 
             let multiplier_u256 = calculate_multiplier(decimal_places);
-            let multiplier: u32 = multiplier_u256.try_into().unwrap();
-            let decimal_part: u32 = decimal_part_u256.try_into().unwrap();
+            let multiplier: u32 = match multiplier_u256.try_into() {
+                Option::Some(val) => val,
+                Option::None => { return Result::Err("Decimal value too large for u32"); },
+            };
+            let decimal_part: u32 = match decimal_part_u256.try_into() {
+                Option::Some(val) => val,
+                Option::None => { return Result::Err("Decimal value too large for u32"); },
+            };
             num = num * multiplier + decimal_part;
         }
 

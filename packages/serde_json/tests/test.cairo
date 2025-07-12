@@ -505,4 +505,68 @@ mod tests {
             },
         }
     }
+
+    #[test]
+    fn test_decimal_overflow_handling() {
+        // Test u32 overflow - use value that will cause multiplier overflow for u32
+        let json_u32_overflow: ByteArray =
+            "{\"u32_value\":\"1.1234567890123456789\",\"u64_value\":\"1\",\"u128_value\":\"1\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"u32 overflow\"}";
+        let result_u32 = deserialize_from_byte_array::<TestAllNumericDecimals>(json_u32_overflow);
+        match result_u32 {
+            Result::Ok(_) => panic(array!['Expected u32 overflow error']),
+            Result::Err(e) => {
+                // Should get an error about decimal value being too large
+                assert(e == "Failed to parse u32_value", 'Should fail u32 parsing');
+            },
+        }
+
+        // Test u64 overflow - use value that will cause multiplier overflow for u64
+        let json_u64_overflow: ByteArray =
+            "{\"u32_value\":\"1\",\"u64_value\":\"1.12345678901234567890123\",\"u128_value\":\"1\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"u64 overflow\"}";
+        let result_u64 = deserialize_from_byte_array::<TestAllNumericDecimals>(json_u64_overflow);
+        match result_u64 {
+            Result::Ok(_) => panic(array!['Expected u64 overflow error']),
+            Result::Err(e) => {
+                // Should get an error about decimal value being too large
+                assert(e == "Failed to parse u64_value", 'Should fail u64 parsing');
+            },
+        }
+
+        // Test u128 overflow - use value that will cause multiplier overflow for u128
+        let json_u128_overflow: ByteArray =
+            "{\"u32_value\":\"1\",\"u64_value\":\"1\",\"u128_value\":\"1.1234567890123456789012345678901234567890123456789\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"u128 overflow\"}";
+        let result_u128 = deserialize_from_byte_array::<TestAllNumericDecimals>(json_u128_overflow);
+        match result_u128 {
+            Result::Ok(_) => panic(array!['Expected u128 overflow error']),
+            Result::Err(e) => {
+                // Should get an error about decimal value being too large
+                assert(e == "Failed to parse u128_value", 'Should fail u128 parsing');
+            },
+        }
+    }
+
+    #[test]
+    fn test_specific_overflow_protection() {
+        // Test that we can handle a simple case that should work
+        let json_good: ByteArray =
+            "{\"u32_value\":\"1.23\",\"u64_value\":\"1\",\"u128_value\":\"1\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"good case\"}";
+        let result_good = deserialize_from_byte_array::<TestAllNumericDecimals>(json_good);
+        match result_good {
+            Result::Ok(nums) => { assert(nums.u32_value == 123_u32, 'Should parse 1.23 as 123'); },
+            Result::Err(_) => panic(array!['Good case should work']),
+        }
+
+        // Test that extremely large multiplier causes overflow protection
+        // Using 50 decimal places which will definitely overflow u32 multiplier
+        let json_overflow: ByteArray =
+            "{\"u32_value\":\"1.12345678901234567890123456789012345678901234567890\",\"u64_value\":\"1\",\"u128_value\":\"1\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"overflow case\"}";
+        let result_overflow = deserialize_from_byte_array::<TestAllNumericDecimals>(json_overflow);
+        match result_overflow {
+            Result::Ok(_) => panic(array!['Should fail overflow']),
+            Result::Err(e) => {
+                // The error should be about failing to parse the u32_value field
+                assert(e == "Failed to parse u32_value", 'Should fail u32 overflow');
+            },
+        }
+    }
 }
