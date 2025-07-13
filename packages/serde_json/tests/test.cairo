@@ -31,11 +31,30 @@ struct TestBigNumber {
     description: ByteArray,
 }
 
+#[derive(Drop, SerdeJson, Default)]
+struct TestDecimalNumber {
+    decimal_value: u256,
+    description: ByteArray,
+}
+
+#[derive(Drop, SerdeJson, Default)]
+struct TestAllNumericDecimals {
+    u32_value: u32,
+    u64_value: u64,
+    u128_value: u128,
+    u256_value: u256,
+    felt252_value: felt252,
+    description: ByteArray,
+}
+
 #[cfg(test)]
 mod tests {
     use core::byte_array::ByteArray;
     use core::panic_with_felt252;
-    use super::{Event, Post, TestBigNumber, User, deserialize_from_byte_array};
+    use super::{
+        Event, Post, TestAllNumericDecimals, TestBigNumber, TestDecimalNumber, User,
+        deserialize_from_byte_array,
+    };
 
     #[test]
     fn test_correct_deserialization() {
@@ -288,7 +307,8 @@ mod tests {
     #[test]
     fn test_deeply_nested_multiline_json() {
         // Test with a deeply nested multiline JSON with various indentation levels
-        let json: ByteArray = "{\n  \"user\": {\n    \"name\": \"john\",\n    \"age\": 42,\n    \"verified\": false\n  },\n  \"message\": \"hello\",\n  \"comments\": [\n    \"nice\",\n    \"cool\"\n  ],\n  \"timestamp\": 1704748800\n}";
+        let json: ByteArray =
+            "{\n  \"user\": {\n    \"name\": \"john\",\n    \"age\": 42,\n    \"verified\": false\n  },\n  \"message\": \"hello\",\n  \"comments\": [\n    \"nice\",\n    \"cool\"\n  ],\n  \"timestamp\": 1704748800\n}";
         let result = deserialize_from_byte_array::<Post>(json);
         match result {
             Result::Ok(post) => {
@@ -311,7 +331,8 @@ mod tests {
     #[test]
     fn test_mixed_whitespace_styles() {
         // Test with a mix of tabs, spaces, and various whitespace characters
-        let json: ByteArray = "{\r\n\t\"name\":\t\"bob\",\r\n  \"age\":   30,\r\n\t\t\"verified\":  true\r\n}";
+        let json: ByteArray =
+            "{\r\n\t\"name\":\t\"bob\",\r\n  \"age\":   30,\r\n\t\t\"verified\":  true\r\n}";
         let result = deserialize_from_byte_array::<User>(json);
         match result {
             Result::Ok(user) => {
@@ -329,7 +350,8 @@ mod tests {
     #[test]
     fn test_preserve_string_whitespace() {
         // Test that whitespace within strings is preserved correctly
-        let json: ByteArray = "{\n  \"name\": \"john \t doe\",\n  \"age\": 25,\n  \"verified\": true\n}";
+        let json: ByteArray =
+            "{\n  \"name\": \"john \t doe\",\n  \"age\": 25,\n  \"verified\": true\n}";
         let result = deserialize_from_byte_array::<User>(json);
         match result {
             Result::Ok(user) => {
@@ -348,8 +370,9 @@ mod tests {
     fn test_multiline_complex_proof() {
         // Test with a complex multiline JSON typical for proof objects
         // Using only fields that exist in the Event struct (id, name, active)
-        let json: ByteArray = "{\n  \"id\": 123456,\n  \"name\": \"Proof Object\",\n  \"active\": true,\n  \"timestamp\": 0\n}";
-        
+        let json: ByteArray =
+            "{\n  \"id\": 123456,\n  \"name\": \"Proof Object\",\n  \"active\": true,\n  \"timestamp\": 0\n}";
+
         let result = deserialize_from_byte_array::<Event>(json);
         match result {
             Result::Ok(event) => {
@@ -360,6 +383,189 @@ mod tests {
             Result::Err(e) => {
                 println!("error: {}", e);
                 panic_with_felt252('Failed');
+            },
+        }
+    }
+
+    #[test]
+    fn test_u256_decimal_parsing() {
+        // Test parsing decimal number "1430.1" as u256
+        let json: ByteArray = "{\"decimal_value\":\"1430.1\",\"description\":\"decimal test\"}";
+        let result = deserialize_from_byte_array::<TestDecimalNumber>(json);
+        match result {
+            Result::Ok(decimal_num) => {
+                assert(decimal_num.decimal_value == 14301_u256, 'should be 14301 (1430.1 * 10)');
+                assert(decimal_num.description == "decimal test", 'description should match');
+            },
+            Result::Err(e) => {
+                println!("error: {}", e);
+                panic_with_felt252('Decimal parsing failed');
+            },
+        }
+
+        // Test parsing decimal number "123.456" as u256
+        let json2: ByteArray = "{\"decimal_value\":\"123.456\",\"description\":\"three decimals\"}";
+        let result2 = deserialize_from_byte_array::<TestDecimalNumber>(json2);
+        match result2 {
+            Result::Ok(decimal_num) => {
+                assert(decimal_num.decimal_value == 123456_u256, 'should be 123456');
+                assert(decimal_num.description == "three decimals", 'description should match');
+            },
+            Result::Err(e) => {
+                println!("error: {}", e);
+                panic_with_felt252('Decimal parsing failed');
+            },
+        }
+
+        // Test parsing whole number without decimal point
+        let json3: ByteArray = "{\"decimal_value\":\"42\",\"description\":\"whole number\"}";
+        let result3 = deserialize_from_byte_array::<TestDecimalNumber>(json3);
+        match result3 {
+            Result::Ok(decimal_num) => {
+                assert(decimal_num.decimal_value == 42_u256, 'should be 42');
+                assert(decimal_num.description == "whole number", 'description should match');
+            },
+            Result::Err(e) => {
+                println!("error: {}", e);
+                panic_with_felt252('Whole number parsing failed');
+            },
+        }
+
+        // Test parsing decimal with leading zero "0.5"
+        let json4: ByteArray = "{\"decimal_value\":\"0.5\",\"description\":\"leading zero\"}";
+        let result4 = deserialize_from_byte_array::<TestDecimalNumber>(json4);
+        match result4 {
+            Result::Ok(decimal_num) => {
+                assert(decimal_num.decimal_value == 5_u256, 'should be 5 (0.5 * 10)');
+                assert(decimal_num.description == "leading zero", 'description should match');
+            },
+            Result::Err(e) => {
+                println!("error: {}", e);
+                panic_with_felt252('Leading zero failed');
+            },
+        }
+    }
+
+    #[test]
+    fn test_all_numeric_types_decimal_parsing() {
+        // Test parsing decimals for all numeric types in one struct
+        let json: ByteArray =
+            "{\"u32_value\":\"12.34\",\"u64_value\":\"567.89\",\"u128_value\":\"999.123\",\"u256_value\":\"1000.5\",\"felt252_value\":\"42.7\",\"description\":\"all types\"}";
+        let result = deserialize_from_byte_array::<TestAllNumericDecimals>(json);
+        match result {
+            Result::Ok(all_nums) => {
+                assert(all_nums.u32_value == 1234_u32, 'u32: 12.34 -> 1234');
+                assert(all_nums.u64_value == 56789_u64, 'u64: 567.89 -> 56789');
+                assert(all_nums.u128_value == 999123_u128, 'u128: 999.123 -> 999123');
+                assert(all_nums.u256_value == 10005_u256, 'u256: 1000.5 -> 10005');
+                assert(all_nums.felt252_value == 427, 'felt252: 42.7 -> 427');
+                assert(all_nums.description == "all types", 'description should match');
+            },
+            Result::Err(e) => {
+                println!("error: {}", e);
+                panic_with_felt252('All numeric types test failed');
+            },
+        }
+
+        // Test edge case: single decimal place for all types
+        let json2: ByteArray =
+            "{\"u32_value\":\"1.0\",\"u64_value\":\"2.0\",\"u128_value\":\"3.0\",\"u256_value\":\"4.0\",\"felt252_value\":\"5.0\",\"description\":\"single decimal\"}";
+        let result2 = deserialize_from_byte_array::<TestAllNumericDecimals>(json2);
+        match result2 {
+            Result::Ok(all_nums) => {
+                assert(all_nums.u32_value == 10_u32, 'u32: 1.0 -> 10');
+                assert(all_nums.u64_value == 20_u64, 'u64: 2.0 -> 20');
+                assert(all_nums.u128_value == 30_u128, 'u128: 3.0 -> 30');
+                assert(all_nums.u256_value == 40_u256, 'u256: 4.0 -> 40');
+                assert(all_nums.felt252_value == 50, 'felt252: 5.0 -> 50');
+                assert(all_nums.description == "single decimal", 'description should match');
+            },
+            Result::Err(e) => {
+                println!("error: {}", e);
+                panic_with_felt252('Single decimal test failed');
+            },
+        }
+
+        // Test unquoted decimal parsing
+        let json3: ByteArray =
+            "{\"u32_value\":12.5,\"u64_value\":34.6,\"u128_value\":78.9,\"u256_value\":100.1,\"felt252_value\":200.2,\"description\":\"unquoted decimals\"}";
+        let result3 = deserialize_from_byte_array::<TestAllNumericDecimals>(json3);
+        match result3 {
+            Result::Ok(all_nums) => {
+                assert(all_nums.u32_value == 125_u32, 'u32: 12.5 -> 125');
+                assert(all_nums.u64_value == 346_u64, 'u64: 34.6 -> 346');
+                assert(all_nums.u128_value == 789_u128, 'u128: 78.9 -> 789');
+                assert(all_nums.u256_value == 1001_u256, 'u256: 100.1 -> 1001');
+                assert(all_nums.felt252_value == 2002, 'felt252: 200.2 -> 2002');
+                assert(all_nums.description == "unquoted decimals", 'description should match');
+            },
+            Result::Err(e) => {
+                println!("error: {}", e);
+                panic_with_felt252('Unquoted decimal test failed');
+            },
+        }
+    }
+
+    #[test]
+    fn test_decimal_overflow_handling() {
+        // Test u32 overflow - use value that will cause multiplier overflow for u32
+        let json_u32_overflow: ByteArray =
+            "{\"u32_value\":\"1.1234567890123456789\",\"u64_value\":\"1\",\"u128_value\":\"1\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"u32 overflow\"}";
+        let result_u32 = deserialize_from_byte_array::<TestAllNumericDecimals>(json_u32_overflow);
+        match result_u32 {
+            Result::Ok(_) => panic(array!['Expected u32 overflow error']),
+            Result::Err(e) => {
+                // Should get an error about decimal value being too large
+                assert(e == "Failed to parse u32_value", 'Should fail u32 parsing');
+            },
+        }
+
+        // Test u64 overflow - use value that will cause multiplier overflow for u64
+        let json_u64_overflow: ByteArray =
+            "{\"u32_value\":\"1\",\"u64_value\":\"1.12345678901234567890123\",\"u128_value\":\"1\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"u64 overflow\"}";
+        let result_u64 = deserialize_from_byte_array::<TestAllNumericDecimals>(json_u64_overflow);
+        match result_u64 {
+            Result::Ok(_) => panic(array!['Expected u64 overflow error']),
+            Result::Err(e) => {
+                // Should get an error about decimal value being too large
+                assert(e == "Failed to parse u64_value", 'Should fail u64 parsing');
+            },
+        }
+
+        // Test u128 overflow - use value that will cause multiplier overflow for u128
+        let json_u128_overflow: ByteArray =
+            "{\"u32_value\":\"1\",\"u64_value\":\"1\",\"u128_value\":\"1.1234567890123456789012345678901234567890123456789\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"u128 overflow\"}";
+        let result_u128 = deserialize_from_byte_array::<TestAllNumericDecimals>(json_u128_overflow);
+        match result_u128 {
+            Result::Ok(_) => panic(array!['Expected u128 overflow error']),
+            Result::Err(e) => {
+                // Should get an error about decimal value being too large
+                assert(e == "Failed to parse u128_value", 'Should fail u128 parsing');
+            },
+        }
+    }
+
+    #[test]
+    fn test_specific_overflow_protection() {
+        // Test that we can handle a simple case that should work
+        let json_good: ByteArray =
+            "{\"u32_value\":\"1.23\",\"u64_value\":\"1\",\"u128_value\":\"1\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"good case\"}";
+        let result_good = deserialize_from_byte_array::<TestAllNumericDecimals>(json_good);
+        match result_good {
+            Result::Ok(nums) => { assert(nums.u32_value == 123_u32, 'Should parse 1.23 as 123'); },
+            Result::Err(_) => panic(array!['Good case should work']),
+        }
+
+        // Test that extremely large multiplier causes overflow protection
+        // Using 50 decimal places which will definitely overflow u32 multiplier
+        let json_overflow: ByteArray =
+            "{\"u32_value\":\"1.12345678901234567890123456789012345678901234567890\",\"u64_value\":\"1\",\"u128_value\":\"1\",\"u256_value\":\"1\",\"felt252_value\":\"1\",\"description\":\"overflow case\"}";
+        let result_overflow = deserialize_from_byte_array::<TestAllNumericDecimals>(json_overflow);
+        match result_overflow {
+            Result::Ok(_) => panic(array!['Should fail overflow']),
+            Result::Err(e) => {
+                // The error should be about failing to parse the u32_value field
+                assert(e == "Failed to parse u32_value", 'Should fail u32 overflow');
             },
         }
     }
